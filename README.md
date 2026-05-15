@@ -57,6 +57,26 @@ use hydra to change training settings, for example:
 python3 train.py -cn=soundstream trainer.device=cuda
 ```
 
+in case you want to train this monster on kaggle, use:
+
+```bash
+python3 train.py -cn=soundstream \
+  datasets.train.data_dir=PATH_TO_DATASET \
+  datasets.val.data_dir=PATH_TO_DATASET \
+  datasets.test.data_dir=PATH_TO_DATASET \
+  trainer.n_epochs=1 \
+  trainer.epoch_len=45000 \
+  dataloader.batch_size=12 \
+  writer.mode=online \
+  trainer.override=true
+```
+
+to make it faster one would compute less metrics on train, for example:
+
+```bash
+
+```
+
 ## inference / evaluation
 
 ```bash
