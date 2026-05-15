@@ -1,0 +1,19 @@
+defaults:
+  - model: soundstream
+  - metrics: codec
+  - datasets: librispeech_eval
+  - dataloader: example
+  - transforms: codec
+  - _self_
+
+inferencer:
+  device_tensors: ["audio"]
+  device: auto
+  save_path: "soundstream_eval"
+  seed: 1
+  from_pretrained: "saved/soundstream_model/model_best.pth"
+
+dataloader:
+  batch_size: 1
+  num_workers: 2
+  pin_memory: true

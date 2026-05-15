@@ -1,0 +1,77 @@
+defaults:
+  - model: soundstream
+  - writer: cometml
+  - metrics: codec
+  - datasets: librispeech
+  - dataloader: example
+  - transforms: codec
+  - _self_
+
+dataloader:
+  batch_size: 12
+  num_workers: 4
+  pin_memory: true
+
+discriminator:
+  _target_: src.model.SoundStreamDiscriminator
+
+loss_function:
+  _target_: src.loss.SoundStreamLoss
+  recon_weight: 1.0
+  commit_weight: 1.0
+  adv_weight: 1.0
+  feature_matching_weight: 100.0
+
+optimizer_g:
+  _target_: torch.optim.Adam
+  lr: 1e-4
+  betas: [0.5, 0.9]
+
+optimizer_d:
+  _target_: torch.optim.Adam
+  lr: 1e-4
+  betas: [0.5, 0.9]
+
+lr_scheduler_g: null
+lr_scheduler_d: null
+
+trainer:
+  log_step: 100
+  n_epochs: 1
+  epoch_len: 45000
+  device_tensors: ["audio"]
+  resume_from: null
+  from_pretrained: null
+  device: auto
+  override: false
+  monitor: "max val_STOI"
+  save_period: 1
+  early_stop: ${trainer.n_epochs}
+  save_dir: "saved"
+  seed: 1
+  max_grad_norm: 1000.0
+
+writer:
+  project_name: "soundstream"
+  run_name: "soundstream_model"
+  mode: "online"
+  loss_names:
+    [
+      "loss",
+      "recon_loss",
+      "commit_loss",
+      "adv_loss",
+      "fm_loss",
+      "loss_d",
+      "loss_d_real",
+      "loss_d_fake",
+      "codebook_perplexity",
+      "codebook_perplexity_0",
+      "codebook_perplexity_1",
+      "codebook_perplexity_2",
+      "codebook_perplexity_3",
+      "codebook_perplexity_4",
+      "codebook_perplexity_5",
+      "codebook_perplexity_6",
+      "codebook_perplexity_7"
+    ]

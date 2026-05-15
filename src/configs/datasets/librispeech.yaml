@@ -1,0 +1,27 @@
+train:
+  _target_: src.datasets.LibriSpeechDataset
+  split: "train-clean-100"
+  data_dir: ${hydra:runtime.cwd}/data/librispeech
+  sample_rate: 16000
+  segment_seconds: 0.5
+  random_crop: true
+  instance_transforms: ${transforms.instance_transforms.train}
+
+val:
+  _target_: src.datasets.LibriSpeechDataset
+  split: "test-clean"
+  data_dir: ${hydra:runtime.cwd}/data/librispeech
+  sample_rate: 16000
+  segment_seconds: null
+  random_crop: false
+  limit: 20
+  instance_transforms: ${transforms.instance_transforms.inference}
+
+test:
+  _target_: src.datasets.LibriSpeechDataset
+  split: "test-clean"
+  data_dir: ${hydra:runtime.cwd}/data/librispeech
+  sample_rate: 16000
+  segment_seconds: null
+  random_crop: false
+  instance_transforms: ${transforms.instance_transforms.inference}

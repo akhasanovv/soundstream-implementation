@@ -1,0 +1,4 @@
+defaults:
+  - batch_transforms: codec
+  - instance_transforms: codec
+  - _self_

@@ -1,0 +1,32 @@
+device: "auto"
+sample_rate: 16000
+
+train: # metrics that are calculated during training
+  - _target_: src.metrics.AudioMetric
+    metric:
+      _target_: torchmetrics.audio.nisqa.NonIntrusiveSpeechQualityAssessment
+      fs: ${metrics.sample_rate}
+    sample_rate: ${metrics.sample_rate}
+    name: "NISQA"
+  - _target_: src.metrics.AudioMetric
+    metric:
+      _target_: torchmetrics.audio.stoi.ShortTimeObjectiveIntelligibility
+      fs: ${metrics.sample_rate}
+      extended: false
+    sample_rate: ${metrics.sample_rate}
+    name: "STOI"
+
+inference: # metrics that are calculated during inference (eval)
+  - _target_: src.metrics.AudioMetric
+    metric:
+      _target_: torchmetrics.audio.nisqa.NonIntrusiveSpeechQualityAssessment
+      fs: ${metrics.sample_rate}
+    sample_rate: ${metrics.sample_rate}
+    name: "NISQA"
+  - _target_: src.metrics.AudioMetric
+    metric:
+      _target_: torchmetrics.audio.stoi.ShortTimeObjectiveIntelligibility
+      fs: ${metrics.sample_rate}
+      extended: false
+    sample_rate: ${metrics.sample_rate}
+    name: "STOI"
