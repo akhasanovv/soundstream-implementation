@@ -4,12 +4,6 @@ sample_rate: 16000
 train: # metrics that are calculated during training
   - _target_: src.metrics.AudioMetric
     metric:
-      _target_: torchmetrics.audio.nisqa.NonIntrusiveSpeechQualityAssessment
-      fs: ${metrics.sample_rate}
-    sample_rate: ${metrics.sample_rate}
-    name: "NISQA"
-  - _target_: src.metrics.AudioMetric
-    metric:
       _target_: torchmetrics.audio.stoi.ShortTimeObjectiveIntelligibility
       fs: ${metrics.sample_rate}
       extended: false
@@ -22,6 +16,8 @@ inference: # metrics that are calculated during inference (eval)
       _target_: torchmetrics.audio.nisqa.NonIntrusiveSpeechQualityAssessment
       fs: ${metrics.sample_rate}
     sample_rate: ${metrics.sample_rate}
+    target_key: null
+    output_index: 0 # only niswa matters
     name: "NISQA"
   - _target_: src.metrics.AudioMetric
     metric:

@@ -1,4 +1,5 @@
 import torch
+from torch.nn.utils import clip_grad_norm_
 
 from src.metrics.tracker import MetricTracker
 from src.trainer.base_trainer import BaseTrainer
@@ -8,19 +9,26 @@ class Trainer(BaseTrainer):
     """
     trainer for soundstream
     """
+
     def set_grad(self, module, requires_grad):
         if module is None:
             return
-        
+
         for param in module.parameters():
             param.requires_grad_(requires_grad)
 
     def step_scheduler(self, scheduler):
         if scheduler is None:
             return
-        
+
         scheduler.step()
-        
+
+    def _clip_module_grad_norm(self, module):
+        if self.config["trainer"].get("max_grad_norm", None) is not None:
+            clip_grad_norm_(
+                module.parameters(), self.config["trainer"]["max_grad_norm"]
+            )
+
     def compute_perplexity(self, codebook_indices, num_embeddings):
         perplexities = {}
         all_probs = []
@@ -39,13 +47,17 @@ class Trainer(BaseTrainer):
             perplexities["codebook_perplexity"] = agg_entropy.exp().item()
 
         return perplexities
-    
+
     def _process_batch_adversarial(self, batch, metrics: MetricTracker):
         # discriminator sstep
         self.optimizer["discriminator"].zero_grad()
 
-        with torch.no_grad():
-            outputs = self.model(**batch)
+        self.model.eval()
+        try:
+            with torch.no_grad():
+                outputs = self.model(**batch)
+        finally:
+            self.model.train()
         batch.update(outputs)
 
         real_audio = batch["audio"]
@@ -53,18 +65,19 @@ class Trainer(BaseTrainer):
 
         d_real_outputs = self.discriminator(real_audio)
         d_fake_outputs = self.discriminator(fake_audio)
-        
+
         d_losses = self.criterion.discriminator_loss(
             real_outputs=d_real_outputs,
             fake_outputs=d_fake_outputs,
         )
-        
+
         # upd discriminator
         d_losses["loss_d"].backward()
+        self._clip_module_grad_norm(self.discriminator)
         self.optimizer["discriminator"].step()
         if self.lr_scheduler is not None:
             self.step_scheduler(self.lr_scheduler.get("discriminator"))
-        
+
         # generator step
         self.optimizer["generator"].zero_grad()
         outputs = self.model(**batch)
@@ -72,10 +85,10 @@ class Trainer(BaseTrainer):
 
         # eval with discriminator, no upd
         self.set_grad(self.discriminator, False)
-        
+
         d_real_outputs = self.discriminator(real_audio)
         d_fake_outputs = self.discriminator(batch["reconstructed_audio"])
-        
+
         g_losses = self.criterion.generator_loss(
             audio=real_audio,
             reconstructed_audio=batch["reconstructed_audio"],
@@ -83,24 +96,28 @@ class Trainer(BaseTrainer):
             real_outputs=d_real_outputs,
             fake_outputs=d_fake_outputs,
         )
-        
+
         g_losses["loss"].backward()
+        self._clip_module_grad_norm(self.model)
         self.optimizer["generator"].step()
-        
+
         self.set_grad(self.discriminator, True)
         if self.lr_scheduler is not None:
             self.step_scheduler(self.lr_scheduler.get("generator"))
 
         batch.update(g_losses)
         batch.update(d_losses)
-        
-        if "codebook_indices" in batch and self.config.model.get("num_embeddings") is not None:
+
+        if (
+            "codebook_indices" in batch
+            and self.config.model.get("num_embeddings") is not None
+        ):
             batch.update(
                 self.compute_perplexity(
                     batch["codebook_indices"], self.config.model.num_embeddings
                 )
             )
-        
+
         return batch
 
     def process_batch(self, batch, metrics: MetricTracker):
@@ -133,18 +150,21 @@ class Trainer(BaseTrainer):
                 batch = self._process_batch_adversarial(batch=batch, metrics=metrics)
             else:
                 self.optimizer.zero_grad()
-                
+
                 outputs = self.model(**batch)
                 batch.update(outputs)
                 all_losses = self.criterion(**batch)
                 batch.update(all_losses)
                 batch["loss"].backward()
-                
+
                 self._clip_grad_norm()
                 self.optimizer.step()
-                
+
                 self.step_scheduler(self.lr_scheduler)
-                if "codebook_indices" in batch and self.config.model.get("num_embeddings") is not None:
+                if (
+                    "codebook_indices" in batch
+                    and self.config.model.get("num_embeddings") is not None
+                ):
                     batch.update(
                         self.compute_perplexity(
                             batch["codebook_indices"], self.config.model.num_embeddings
@@ -155,8 +175,11 @@ class Trainer(BaseTrainer):
             batch.update(outputs)
             all_losses = self.criterion(**batch)
             batch.update(all_losses)
-            
-            if "codebook_indices" in batch and self.config.model.get("num_embeddings") is not None:
+
+            if (
+                "codebook_indices" in batch
+                and self.config.model.get("num_embeddings") is not None
+            ):
                 batch.update(
                     self.compute_perplexity(
                         batch["codebook_indices"], self.config.model.num_embeddings
@@ -165,7 +188,8 @@ class Trainer(BaseTrainer):
 
         # update metrics for each loss (in case of multiple losses)
         for loss_name in self.config.writer.loss_names:
-            metrics.update(loss_name, batch[loss_name].item())
+            if loss_name in batch:
+                metrics.update(loss_name, batch[loss_name].item())
 
         for met in metric_funcs:
             metrics.update(met.name, met(**batch))
@@ -192,14 +216,14 @@ class Trainer(BaseTrainer):
             self.writer.add_audio(
                 f"{mode}_audio_original",
                 batch["audio"][0].detach().cpu(),
-                sample_rate=sample_rate
+                sample_rate=sample_rate,
             )
 
         if "reconstructed_audio" in batch:
             self.writer.add_audio(
                 f"{mode}_audio_reconstructed",
                 batch["reconstructed_audio"][0].detach().cpu(),
-                sample_rate=sample_rate
+                sample_rate=sample_rate,
             )
 
         if "codebook_indices" in batch:
@@ -207,5 +231,5 @@ class Trainer(BaseTrainer):
                 self.writer.add_histogram(
                     f"{mode}_codebook_indices_{i}",
                     indices.detach().float().cpu(),
-                    bins=self.config.model.get("num_embeddings", None)
+                    bins=self.config.model.get("num_embeddings", None),
                 )

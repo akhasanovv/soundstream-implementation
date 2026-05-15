@@ -41,7 +41,7 @@ def main(config):
     # build model architecture, then print to console
     model = instantiate(config.model).to(device)
     logger.info(model)
-    
+
     # load discriminator
     discriminator = None
     if config.get("discriminator") is not None:
@@ -56,17 +56,25 @@ def main(config):
     lr_scheduler = None
     if discriminator is not None and config.get("optimizer_g") is not None:
         generator_params = filter(lambda p: p.requires_grad, model.parameters())
-        discriminator_params = filter(lambda p: p.requires_grad, discriminator.parameters())
-        
+        discriminator_params = filter(
+            lambda p: p.requires_grad, discriminator.parameters()
+        )
+
         optimizer = {
             "generator": instantiate(config.optimizer_g, params=generator_params),
-            "discriminator": instantiate(config.optimizer_d, params=discriminator_params)
+            "discriminator": instantiate(
+                config.optimizer_d, params=discriminator_params
+            ),
         }
 
         if config.get("lr_scheduler_g") is not None:
             lr_scheduler = {
-                "generator": instantiate(config.lr_scheduler_g, optimizer=optimizer["generator"]),
-                "discriminator": instantiate(config.lr_scheduler_d, optimizer=optimizer["discriminator"])
+                "generator": instantiate(
+                    config.lr_scheduler_g, optimizer=optimizer["generator"]
+                ),
+                "discriminator": instantiate(
+                    config.lr_scheduler_d, optimizer=optimizer["discriminator"]
+                ),
             }
     else:
         trainable_params = filter(lambda p: p.requires_grad, model.parameters())

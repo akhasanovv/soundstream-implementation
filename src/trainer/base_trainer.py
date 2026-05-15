@@ -230,7 +230,7 @@ class BaseTrainer:
                         epoch, self._progress(batch_idx), batch["loss"].item()
                     )
                 )
-                
+
                 if self.lr_scheduler is not None:
                     if isinstance(self.lr_scheduler, dict):
                         lr_g = self.lr_scheduler["generator"].get_last_lr()[0]
@@ -241,10 +241,6 @@ class BaseTrainer:
                         self.writer.add_scalar(
                             "learning rate", self.lr_scheduler.get_last_lr()[0]
                         )
-                
-                self.writer.add_scalar(
-                    "learning rate", self.lr_scheduler.get_last_lr()[0]
-                )
                 self._log_scalars(self.train_metrics)
                 self._log_batch(batch_idx, batch)
                 # we don't want to reset train metrics at the start of every epoch
@@ -481,12 +477,10 @@ class BaseTrainer:
             "arch": arch,
             "epoch": epoch,
             "state_dict": self.model.state_dict(),
-            "optimizer": self.optimizer.state_dict(),
-            "lr_scheduler": self.lr_scheduler.state_dict(),
             "monitor_best": self.mnt_best,
             "config": self.config,
         }
-        
+
         if self.discriminator is not None:
             state["discriminator_state_dict"] = self.discriminator.state_dict()
 
@@ -505,7 +499,7 @@ class BaseTrainer:
             }
         else:
             state["lr_scheduler"] = self.lr_scheduler.state_dict()
-        
+
         filename = str(self.checkpoint_dir / f"checkpoint-epoch{epoch}.pth")
         if not (only_best and save_best):
             torch.save(state, filename)
@@ -573,9 +567,12 @@ class BaseTrainer:
             else:
                 self.optimizer.load_state_dict(checkpoint["optimizer"])
                 self.lr_scheduler.load_state_dict(checkpoint["lr_scheduler"])
-            
+
         # load discriminator state
-        if self.discriminator is not None and checkpoint.get("discriminator_state_dict") is not None:
+        if (
+            self.discriminator is not None
+            and checkpoint.get("discriminator_state_dict") is not None
+        ):
             self.discriminator.load_state_dict(checkpoint["discriminator_state_dict"])
 
         self.logger.info(
