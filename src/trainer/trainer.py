@@ -88,7 +88,8 @@ class Trainer(BaseTrainer):
         self.optimizer["generator"].step()
         
         self.set_grad(self.discriminator, True)
-        self.step_scheduler(self.lr_scheduler.get("generator"))
+        if self.lr_scheduler is not None:
+            self.step_scheduler(self.lr_scheduler.get("generator"))
 
         batch.update(g_losses)
         batch.update(d_losses)
