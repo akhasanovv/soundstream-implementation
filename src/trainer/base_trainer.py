@@ -18,6 +18,7 @@ class BaseTrainer:
     def __init__(
         self,
         model,
+        discriminator,
         criterion,
         metrics,
         optimizer,
@@ -67,6 +68,7 @@ class BaseTrainer:
         self.log_step = config.trainer.get("log_step", 50)
 
         self.model = model
+        self.discriminator = discriminator
         self.criterion = criterion
         self.optimizer = optimizer
         self.lr_scheduler = lr_scheduler
@@ -228,6 +230,18 @@ class BaseTrainer:
                         epoch, self._progress(batch_idx), batch["loss"].item()
                     )
                 )
+                
+                if self.lr_scheduler is not None:
+                    if isinstance(self.lr_scheduler, dict):
+                        lr_g = self.lr_scheduler["generator"].get_last_lr()[0]
+                        lr_d = self.lr_scheduler["discriminator"].get_last_lr()[0]
+                        self.writer.add_scalar("learning rate generator", lr_g)
+                        self.writer.add_scalar("learning rate discriminator", lr_d)
+                    else:
+                        self.writer.add_scalar(
+                            "learning rate", self.lr_scheduler.get_last_lr()[0]
+                        )
+                
                 self.writer.add_scalar(
                     "learning rate", self.lr_scheduler.get_last_lr()[0]
                 )
@@ -472,6 +486,26 @@ class BaseTrainer:
             "monitor_best": self.mnt_best,
             "config": self.config,
         }
+        
+        if self.discriminator is not None:
+            state["discriminator_state_dict"] = self.discriminator.state_dict()
+
+        if isinstance(self.optimizer, dict):
+            state["optimizer"] = {
+                key: opt.state_dict() for key, opt in self.optimizer.items()
+            }
+        else:
+            state["optimizer"] = self.optimizer.state_dict()
+
+        if self.lr_scheduler is None:
+            state["lr_scheduler"] = None
+        elif isinstance(self.lr_scheduler, dict):
+            state["lr_scheduler"] = {
+                key: sched.state_dict() for key, sched in self.lr_scheduler.items()
+            }
+        else:
+            state["lr_scheduler"] = self.lr_scheduler.state_dict()
+        
         filename = str(self.checkpoint_dir / f"checkpoint-epoch{epoch}.pth")
         if not (only_best and save_best):
             torch.save(state, filename)
@@ -512,18 +546,37 @@ class BaseTrainer:
         self.model.load_state_dict(checkpoint["state_dict"])
 
         # load optimizer state from checkpoint only when optimizer type is not changed.
-        if (
-            checkpoint["config"]["optimizer"] != self.config["optimizer"]
-            or checkpoint["config"]["lr_scheduler"] != self.config["lr_scheduler"]
-        ):
-            self.logger.warning(
-                "Warning: Optimizer or lr_scheduler given in the config file is different "
-                "from that of the checkpoint. Optimizer and scheduler parameters "
-                "are not resumed."
-            )
+        if isinstance(self.optimizer, dict):
+            for key in self.optimizer.keys():
+                if key in checkpoint["optimizer"]:
+                    self.optimizer[key].load_state_dict(checkpoint["optimizer"][key])
+            if (
+                self.lr_scheduler is not None
+                and checkpoint.get("lr_scheduler") is not None
+                and isinstance(self.lr_scheduler, dict)
+            ):
+                for key in self.lr_scheduler.keys():
+                    if key in checkpoint["lr_scheduler"]:
+                        self.lr_scheduler[key].load_state_dict(
+                            checkpoint["lr_scheduler"][key]
+                        )
         else:
-            self.optimizer.load_state_dict(checkpoint["optimizer"])
-            self.lr_scheduler.load_state_dict(checkpoint["lr_scheduler"])
+            if (
+                checkpoint["config"]["optimizer"] != self.config["optimizer"]
+                or checkpoint["config"]["lr_scheduler"] != self.config["lr_scheduler"]
+            ):
+                self.logger.warning(
+                    "Warning: Optimizer or lr_scheduler given in the config file is different "
+                    "from that of the checkpoint. Optimizer and scheduler parameters "
+                    "are not resumed."
+                )
+            else:
+                self.optimizer.load_state_dict(checkpoint["optimizer"])
+                self.lr_scheduler.load_state_dict(checkpoint["lr_scheduler"])
+            
+        # load discriminator state
+        if self.discriminator is not None and checkpoint.get("discriminator_state_dict") is not None:
+            self.discriminator.load_state_dict(checkpoint["discriminator_state_dict"])
 
         self.logger.info(
             f"Checkpoint loaded. Resume training from epoch {self.start_epoch}"
