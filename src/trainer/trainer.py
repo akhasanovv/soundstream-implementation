@@ -62,7 +62,8 @@ class Trainer(BaseTrainer):
         # upd discriminator
         d_losses["loss_d"].backward()
         self.optimizer["discriminator"].step()
-        self.step_scheduler(self.lr_scheduler.get("discriminator"))
+        if self.lr_scheduler is not None:
+            self.step_scheduler(self.lr_scheduler.get("discriminator"))
         
         # generator step
         self.optimizer["generator"].zero_grad()

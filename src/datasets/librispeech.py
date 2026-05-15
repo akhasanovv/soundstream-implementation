@@ -39,7 +39,7 @@ class LibriSpeechDataset(BaseDataset):
         self.allowed_suffixes = tuple(s.lower() for s in allowed_suffixes)
 
         if storage_path is None:
-            raise FileNotFoundError("no storage_path provided")
+            storage_path = ROOT_PATH / "data" / "librispeech_index" / f"{self.split}_index.json"
         
         self.storage_path = Path(storage_path)
         self.index = self._create_index()
@@ -94,6 +94,7 @@ class LibriSpeechDataset(BaseDataset):
         if total_len < segment_length:
             n_repeat = (segment_length + total_len - 1) // total_len # ceil(seg_len / tot_len)
             waveform = waveform.repeat(1, n_repeat)
+            total_len = segment_length
 
         if random_crop:
             start = random.randint(0, total_len - segment_length)
