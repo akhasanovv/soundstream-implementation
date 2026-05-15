@@ -44,13 +44,12 @@ export COMET_API_KEY=...
 python3 train.py -cn=soundstream
 ```
 
-config by default:
-1. 16kHz
-2. batch_size=12
-3. 45000 training steps
+config used by default:
+
+1. `sample_rate=16000`
+2. `batch_size=12`
+3. `45000` training steps
 4. constant LR 
-5. strides used -- [2, 4, 5, 5]
-6. in training loop Discriminator is updated first, Generator -- second
 
 use hydra to change training settings, for example:
 
@@ -64,9 +63,7 @@ python3 train.py -cn=soundstream trainer.device=cuda
 python3 inference.py -cn=inference_soundstream
 ```
 
-`inference_soundstream` считает метрики на `test-clean`:
-- STOI
-- NISQA
+`inference_soundstream` computes `STOI` and `NISQA` metrics on `test-clean` part of the dataset.
 
 ---
 
