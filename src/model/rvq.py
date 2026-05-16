@@ -34,7 +34,7 @@ class VectorQuantizer(nn.Module):
         z_q = z_q.view(x.permute(0, 2, 1).shape)
         z_q = z_q.permute(0, 2, 1).contiguous()
 
-        with torch.no_grad():
+        with torch.no_grad(): # can't take grad here
             if self.training:
                 x_flat_detached = x_flat.detach()
                 one_hot = F.one_hot(indices, num_classes=self.num_embeddings).type_as(
@@ -60,7 +60,7 @@ class VectorQuantizer(nn.Module):
                 self.embed.copy_(self.embed_avg / smoothed_cluster_size.unsqueeze(1))
 
         loss = F.mse_loss(z_q.detach(), x)
-        z_q = x + (z_q - x).detach()
+        z_q = x + (z_q - x).detach() # take grad from x
 
         return z_q, loss, indices
 

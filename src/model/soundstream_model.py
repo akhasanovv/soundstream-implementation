@@ -104,6 +104,9 @@ class DecoderBlock(nn.Module):
 
 
 class Encoder(nn.Module):
+    """
+    encoder as decribed in [paper](https://arxiv.org/abs/2107.03312)
+    """
     def __init__(self, in_channels, out_channels):
         super().__init__()
 
@@ -132,6 +135,9 @@ class Encoder(nn.Module):
 
 
 class Decoder(nn.Module):
+    """
+    decoder as described ion [paper](https://arxiv.org/abs/2107.03312)
+    """
     def __init__(self, in_channels, out_channels):
         super().__init__()
 
