@@ -98,6 +98,9 @@ class BaseTrainer:
         self.save_period = (
             self.cfg_trainer.save_period
         )  # checkpoint each save_period epochs
+        self.validation_steps = self.cfg_trainer.get("validation_steps")
+        if self.validation_steps is not None and self.validation_steps <= 0:
+            self.validation_steps = None
         self.monitor = self.cfg_trainer.get(
             "monitor", "off"
         )  # format: "mnt_mode mnt_metric"
@@ -204,6 +207,10 @@ class BaseTrainer:
         self.train_metrics.reset()
         self.writer.set_step((epoch - 1) * self.epoch_len)
         self.writer.add_scalar("epoch", epoch)
+        
+        latest_evaluation_logs = {}
+        last_validation_step = None
+        
         for batch_idx, batch in enumerate(
             tqdm(self.train_dataloader, desc="train", total=self.epoch_len)
         ):
@@ -247,19 +254,49 @@ class BaseTrainer:
                 # because we are interested in recent train metrics
                 last_train_metrics = self.train_metrics.result()
                 self.train_metrics.reset()
+            
+            global_step = (epoch - 1) * self.epoch_len + batch_idx + 1
+            if (
+                self.validation_steps is not None
+                and global_step % self.validation_steps == 0
+            ):
+                latest_evaluation_logs = self._run_evaluation(epoch, step=global_step)
+                last_validation_step = global_step
+                for key, value in latest_evaluation_logs.items():
+                    self.logger.info(f"    step {global_step} {key:15s}: {value}")
+                self.is_train = True
+                self.model.train()
+
             if batch_idx + 1 >= self.epoch_len:
                 break
 
         logs = last_train_metrics
 
-        # Run val/test
-        for part, dataloader in self.evaluation_dataloaders.items():
-            val_logs = self._evaluation_epoch(epoch, part, dataloader)
-            logs.update(**{f"{part}_{name}": value for name, value in val_logs.items()})
+        epoch_end_step = epoch * self.epoch_len
+        if last_validation_step == epoch_end_step:
+            logs.update(latest_evaluation_logs)
+        else:
+            logs.update(self._run_evaluation(epoch))
 
         return logs
 
-    def _evaluation_epoch(self, epoch, part, dataloader):
+    def _run_evaluation(self, epoch, step=None):
+        """
+        Run evaluation on all non-train partitions.
+
+        Args:
+            epoch (int): current training epoch.
+            step (int | None): global training step for step-based validation.
+        Returns:
+            logs (dict): prefixed logs for every evaluation partition.
+        """
+        logs = {}
+        for part, dataloader in self.evaluation_dataloaders.items():
+            val_logs = self._evaluation_epoch(epoch, part, dataloader, step=step)
+            logs.update(**{f"{part}_{name}": value for name, value in val_logs.items()})
+        return logs
+
+    def _evaluation_epoch(self, epoch, part, dataloader, step=None):
         """
         Evaluate model on the partition after training for an epoch.
 
@@ -267,6 +304,7 @@ class BaseTrainer:
             epoch (int): current training epoch.
             part (str): partition to evaluate on
             dataloader (DataLoader): dataloader for the partition.
+            step: step for validation
         Returns:
             logs (dict): logs that contain the information about evaluation.
         """
@@ -283,7 +321,7 @@ class BaseTrainer:
                     batch,
                     metrics=self.evaluation_metrics,
                 )
-            self.writer.set_step(epoch * self.epoch_len, part)
+            self.writer.set_step(step or epoch * self.epoch_len, part)
             self._log_scalars(self.evaluation_metrics)
             self._log_batch(
                 batch_idx, batch, part

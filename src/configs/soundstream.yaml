@@ -45,6 +45,7 @@ trainer:
   device: auto
   override: false
   monitor: "max val_STOI"
+  validation_steps: 5000 # run val STOI/NISQA every N training steps; null disables step validation
   save_period: 1
   early_stop: ${trainer.n_epochs}
   save_dir: "saved"
