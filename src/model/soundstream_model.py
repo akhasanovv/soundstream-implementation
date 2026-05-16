@@ -182,6 +182,8 @@ class SoundStreamModel(nn.Module):
         lat_x = self.encoder(audio)
         quantized_lat, rvq_loss, rvq_indices = self.rvq(lat_x)
         x_hat = self.decoder(quantized_lat)
+        
+        x_hat = x_hat[..., : audio.shape[-1]]
 
         return {
             "reconstructed_audio": x_hat,
