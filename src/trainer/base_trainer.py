@@ -263,7 +263,7 @@ class BaseTrainer:
                 latest_evaluation_logs = self._run_evaluation(epoch, step=global_step)
                 last_validation_step = global_step
                 for key, value in latest_evaluation_logs.items():
-                    self.logger.info(f"    step {global_step} {key:15s}: {value}")
+                    self.logger.info(f"step {global_step} {key:15s}: {value}")
                 self.is_train = True
                 self.model.train()
 
