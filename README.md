@@ -1,5 +1,7 @@
 # soundstream implementation
 
+this repository contains the implementation of [soundstream](https://arxiv.org/abs/2107.03312) audio codec in pytorch. you can download the trained model on [hf](https://huggingface.co/akhasanovv/soundstream-implementation)
+
 ## installation
 
 ```bash
@@ -49,7 +51,7 @@ config used by default:
 1. `sample_rate=16000`
 2. `batch_size=12`
 3. `45000` training steps
-4. constant LR 
+4. `learning_rate=1e-4`, `Adam(beta1=0.5, beta2=0.9)` (as proposed in [seanet](https://arxiv.org/pdf/2009.02095))
 
 use hydra to change training settings, for example:
 
@@ -79,6 +81,6 @@ python3 inference.py -cn=inference_soundstream
 
 `inference_soundstream` computes `STOI` and `NISQA` metrics on `test-clean` part of the dataset.
 
----
+## credits
 
 based on [Petr Grinberg's template](https://github.com/Blinorot/pytorch_project_template)
