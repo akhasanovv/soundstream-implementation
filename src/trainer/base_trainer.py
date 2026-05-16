@@ -183,7 +183,7 @@ class BaseTrainer:
             )
 
             if epoch % self.save_period == 0 or best:
-                self._save_checkpoint(epoch, save_best=best, only_best=True)
+                self._save_checkpoint(epoch, save_best=best)
 
             if stop_process:  # early_stop
                 break
@@ -527,7 +527,9 @@ class BaseTrainer:
         """
         resume_path = str(resume_path)
         self.logger.info(f"Loading checkpoint: {resume_path} ...")
-        checkpoint = torch.load(resume_path, self.device)
+        checkpoint = torch.load(
+            resume_path, map_location=self.device, weights_only=False
+        )
         self.start_epoch = checkpoint["epoch"] + 1
         self.mnt_best = checkpoint["monitor_best"]
 
@@ -566,7 +568,11 @@ class BaseTrainer:
                 )
             else:
                 self.optimizer.load_state_dict(checkpoint["optimizer"])
-                self.lr_scheduler.load_state_dict(checkpoint["lr_scheduler"])
+                if (
+                    self.lr_scheduler is not None
+                    and checkpoint.get("lr_scheduler") is not None
+                ):
+                    self.lr_scheduler.load_state_dict(checkpoint["lr_scheduler"])
 
         # load discriminator state
         if (
@@ -595,7 +601,9 @@ class BaseTrainer:
             self.logger.info(f"Loading model weights from: {pretrained_path} ...")
         else:
             print(f"Loading model weights from: {pretrained_path} ...")
-        checkpoint = torch.load(pretrained_path, self.device)
+        checkpoint = torch.load(
+            pretrained_path, map_location=self.device, weights_only=False
+        )
 
         if checkpoint.get("state_dict") is not None:
             self.model.load_state_dict(checkpoint["state_dict"])

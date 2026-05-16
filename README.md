@@ -71,12 +71,6 @@ python3 train.py -cn=soundstream \
   trainer.override=true
 ```
 
-to make it faster one would compute less metrics on train, for example:
-
-```bash
-
-```
-
 ## inference / evaluation
 
 ```bash
