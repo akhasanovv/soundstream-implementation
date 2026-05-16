@@ -183,8 +183,6 @@ class SoundStreamModel(nn.Module):
         quantized_lat, rvq_loss, rvq_indices = self.rvq(lat_x)
         x_hat = self.decoder(quantized_lat)
 
-        assert x_hat.shape[-1] == audio.shape[-1]
-
         return {
             "reconstructed_audio": x_hat,
             "latent": lat_x,
